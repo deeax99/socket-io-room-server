@@ -1,16 +1,16 @@
 import { io, Socket } from "socket.io-client";
-import { Awaiter, GenericAwaiter } from "../util/awaiter";
-import ServerOperationResult from "../socket-io-room-server/operation/server-operation-result";
-import { Observable } from "../util/observable";
+import { Awaiter, GenericAwaiter } from "../../../../src/util/awaiter";
+import ServerOperationResult from "../../../../src/socket-io-room-server/operation/server-operation-result";
+import { Observable } from "../../../../src/util/observable";
 
 export default class ClientUserConnection {
 
     private socket: Socket;
-    private onDisconnect:Observable; 
+    private onDisconnect: Observable;
 
     constructor(private url: string) {
-        this.onDisconnect = new Observable(); 
-     }
+        this.onDisconnect = new Observable();
+    }
 
     private _connected: boolean;
 
@@ -43,23 +43,43 @@ export default class ClientUserConnection {
     async leaveRoom(msTimeout: number = 5000): Promise<ServerOperationResult> {
         return this.roomOperation("leaveRoom", undefined, msTimeout);
     }
-    async disconnect () : Promise<void> {
-        
+    async disconnect(): Promise<void> {
+
         if (this._connected == false) return;
 
         this._connected = false;
-        
+
         const disconnectionAwaiter = new Awaiter();
-        
+
         const disconnectionEvent = () => {
             disconnectionAwaiter.complete();
-            this.onDisconnect.removeListener(disconnectionEvent);      
+            this.onDisconnect.removeListener(disconnectionEvent);
         };
         this.onDisconnect.addListener(disconnectionEvent);
 
         this.socket.emit("server-disconnection");
-        
+
         await disconnectionAwaiter.getPromise();
+    }
+
+    async setData(data: Map<string, object>, msTimeout: number = 5000) {
+        
+        const obj = Object.fromEntries(data);
+        const awaiter = new Awaiter();
+        this.socket.emit("setData", obj, () => {
+            awaiter.complete();
+        });
+
+        await awaiter.getPromise(msTimeout);
+    }
+
+    async removeData(keys: string[], msTimeout: number = 5000) {
+        const awaiter = new Awaiter();
+        this.socket.emit("removeData",keys, () => {
+            awaiter.complete();
+        });
+
+        await awaiter.getPromise(msTimeout);
     }
 
     private roomOperation(opName: string, roomName: string | undefined, msTimeout: number): Promise<ServerOperationResult> {

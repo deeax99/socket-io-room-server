@@ -2,7 +2,8 @@ import ServerRoom from "./server-room";
 import ServerUser from "../user/server-user";
 import { injectable, singleton } from "tsyringe";
 import ServerOperationResult from "../operation/server-operation-result";
-import { ServerUserConnectionState } from "../user/server-user-state";
+import { ServerUserConnectionState } from "../user/server-user-connection-state-handler";
+import { RoomChangeDto } from "./dto/room-change.dto";
 
 type Rooms =  { [id: string]: ServerRoom };
 
@@ -14,28 +15,28 @@ export default class ServerRoomsHandler {
 
 	joinRoom(user: ServerUser, roomName: string) : ServerOperationResult { 
 		if (!this.isRoomExist(roomName)) {
-			return this.roomNotExistError();
+			return ErrorReturn.RoomNotExistError();
 		}
 		else if (user.connectionState.state != ServerUserConnectionState.Connected) {
-			return this.userAlreadyJoinedError();
+			return ErrorReturn.UserAlreadyJoinedError();
 		}
 		//check if room full
 		else {
-			this.joinRoomUnsafe(user, roomName);
-			return ServerOperationResult.Successed();
+			const result = this.joinRoomUnsafe(user, roomName);
+			return ServerOperationResult.Successed(result);
 		}
 	}
 
 	createRoom(owner: ServerUser, roomName: string) : ServerOperationResult {
 		if (this.isRoomExist(roomName)) {
-			return this.roomExistError();
+			return ErrorReturn.RoomExistError();
 		}
 		else if (owner.connectionState.state != ServerUserConnectionState.Connected) {
-			return this.userAlreadyJoinedError();
+			return ErrorReturn.UserAlreadyJoinedError();
 		}
 		else {
-			this.createRoomUnsafe(owner , roomName);
-			return ServerOperationResult.Successed();
+			const result = this.createRoomUnsafe(owner , roomName);
+			return ServerOperationResult.Successed(result);
 		}
 	}
 
@@ -44,7 +45,7 @@ export default class ServerRoomsHandler {
 		const roomName = user.connectionState.roomName;
 		const room = this.rooms[roomName];
 		if (user.connectionState.state != ServerUserConnectionState.InRoom) {
-			return this.userNotInRoom();
+			return ErrorReturn.UserNotInRoom();
 		}
 		else {
 			room.leaveUser(user);
@@ -65,21 +66,24 @@ export default class ServerRoomsHandler {
 		this.rooms[roomName] = newRoom;
 	}
 
-	private joinRoomUnsafe (user: ServerUser, roomName: string) {
+	private joinRoomUnsafe (user: ServerUser, roomName: string) : RoomChangeDto {
 		const room = this.rooms[roomName];
-		room.joinUser(user);
+		return room.joinUser(user);
 	}
 
-	private roomNotExistError () : ServerOperationResult {
+	
+}
+class ErrorReturn { 
+	static RoomNotExistError () : ServerOperationResult {
 		return ServerOperationResult.Failed("Room not exist");
 	}
-	private roomExistError () : ServerOperationResult {
+	static RoomExistError () : ServerOperationResult {
 		return ServerOperationResult.Failed("Room exist");
 	}
-	private userAlreadyJoinedError () : ServerOperationResult {
+	static UserAlreadyJoinedError () : ServerOperationResult {
 		return ServerOperationResult.Failed("User already joined in another room");
 	}
-	private userNotInRoom () : ServerOperationResult {
+	static UserNotInRoom () : ServerOperationResult {
 		return ServerOperationResult.Failed("User not in joined to any room");
 	}
 }

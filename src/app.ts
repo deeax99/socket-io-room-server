@@ -5,6 +5,7 @@ import ServerRoomsHandler from "./socket-io-room-server/room/server-rooms-handle
 import ServerUsersHandler from "./socket-io-room-server/user/server-users-handler";
 import UsersRoomHandler from "./socket-io-room-server/user/event/users-room-handler";
 import UsersDisconnectionHandler from "./socket-io-room-server/user/event/user-disconnection-handler";
+import UserDataHandler from "./socket-io-room-server/user/event/user-data-handler";
 
 type constructor<T> = {
     new(...args: any[]): T;
@@ -15,7 +16,8 @@ export const appServices:constructor<any>[] = [
     ServerRoomsHandler,
     ServerUsersHandler,
     UsersRoomHandler,
-    UsersDisconnectionHandler
+    UsersDisconnectionHandler,
+    UserDataHandler
 ];
 
 @singleton()

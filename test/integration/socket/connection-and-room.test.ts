@@ -1,113 +1,7 @@
 import SocketIOServer from "../../../src/socket-io-room-server/server/socket-io-server";
 import { container } from "tsyringe";
-import { Awaiter } from "../../../src/util/awaiter";
-import ClientUserConnection from "../../../src/client-socket/client-user-connection";
-import ServerRoomsHandler from "../../../src/socket-io-room-server/room/server-rooms-handler";
-import ServerRoom from "../../../src/socket-io-room-server/room/server-room";
-import ServerUser from "../../../src/socket-io-room-server/user/server-user";
 import { instantiateServices } from "../../../src/app";
-
-type Rooms = { [id: string]: ServerRoom };
-
-class SocketCheckUtility {
-
-    constructor(private socketTestUtility: SocketTestUtility) { }
-    checkRoom(roomName) {
-        const rooms = this.socketTestUtility.getRooms();
-        return roomName in rooms;
-    }
-    getRoomUserCount(roomName) {
-        const room = this.socketTestUtility.getRoom(roomName);
-        const users = this.socketTestUtility.getRoomUsers(room);
-        return users.length;
-    }
-
-    checkRoomClients(roomName: string, clientConnections: ClientUserConnection[]) {
-        const room = this.socketTestUtility.getRoom(roomName);
-        const users = this.socketTestUtility.getRoomUsers(room);
-
-        const lhs = clientConnections.map(clientConnection => clientConnection.id);
-        const rhs = users.map(user => user.id);
-        
-        return this.arraysEqual(lhs,rhs);
-    }
-
-    private arraysEqual(a: any[], b: any[], withOrder: boolean = true): boolean {
-
-        if (a === b) return true;
-        if (a == null || b == null) return false;
-        if (a.length !== b.length) return false;
-
-        if (!withOrder) {
-            a.sort();
-            b.sort();
-        }
-        for (var i = 0; i < a.length; ++i) {
-            if (a[i] !== b[i]) return false;
-        }
-
-        return true;
-    }
-}
-
-class SocketTestUtility {
-
-    public static port:number = 5656;
-    private static url: string = "http://localhost:5656";
-    private socketCheckUtility: SocketCheckUtility;
-
-    constructor() {
-        this.socketCheckUtility = new SocketCheckUtility(this);
-    }
-
-    public get checker(): SocketCheckUtility {
-        return this.socketCheckUtility;
-    }
-
-    createClient = async (): Promise<ClientUserConnection> => {
-        const clientSocket = new ClientUserConnection(SocketTestUtility.url);
-        await clientSocket.connect();
-
-        return clientSocket;
-    }
-
-    getRooms(): Rooms {
-        const roomsHandler = container.resolve(ServerRoomsHandler);
-        const rooms = roomsHandler["rooms"];
-        return rooms;
-    }
-    getRoomUsers(room: ServerRoom): ServerUser[] {
-        return room["users"];
-    }
-    getRoom(roomName: string): ServerRoom {
-        const rooms = this.getRooms();
-        return rooms[roomName];
-    }
-
-    async createRoom(roomName: string, userCount: number): Promise<ClientUserConnection[]> {
-        if (userCount <= 0)
-            return [];
-
-        const result: ClientUserConnection[] = [];
-        const owner = await this.createClient();
-
-        const createResult = await owner.createRoom(roomName);
-
-        if (createResult.success == false)
-            return [];
-
-        const nullArr = [];
-        for (let i = 1; i < userCount; i++) {
-            nullArr.push(null);
-        }
-
-        const clients = await Promise.all(nullArr.map(_ => this.createClient()));
-        await Promise.all(clients.map(client => client.joinRoom(roomName)));
-
-        return [owner, ...clients];
-    }
-}
-
+import { SocketTestUtility } from "./util/socket-test-utility";
 
 describe("Socket Connection", () => {
 
@@ -307,4 +201,6 @@ describe("Socket Connection", () => {
         expect(testUtility.checker.checkRoomClients(roomName2 , secondRoomClient)).toBeTruthy();
     });
 
+    //Normal disconnection check
 });
+
