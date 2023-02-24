@@ -2,6 +2,7 @@ import { io, Socket } from "socket.io-client";
 import { Awaiter, GenericAwaiter } from "../../../../src/util/awaiter";
 import ServerOperationResult from "../../../../src/socket-io-room-server/operation/server-operation-result";
 import { Observable } from "../../../../src/util/observable";
+import { KeyValueDataChange } from "../../../../src/socket-io-room-server/room/dto/data-key-value-change";
 
 export default class ClientUserConnection {
 
@@ -62,11 +63,10 @@ export default class ClientUserConnection {
         await disconnectionAwaiter.getPromise();
     }
 
-    async setData(data: Map<string, object>, msTimeout: number = 5000) {
+    async setData(data: KeyValueDataChange, msTimeout: number = 5000) {
         
-        const obj = Object.fromEntries(data);
         const awaiter = new Awaiter();
-        this.socket.emit("setData", obj, () => {
+        this.socket.emit("setData", data, () => {
             awaiter.complete();
         });
 

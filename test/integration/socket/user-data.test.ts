@@ -2,6 +2,7 @@ import SocketIOServer from "../../../src/socket-io-room-server/server/socket-io-
 import { container } from "tsyringe";
 import { instantiateServices } from "../../../src/app";
 import { SocketTestUtility } from "./util/socket-test-utility";
+import { KeyValueDataChange } from "../../../src/socket-io-room-server/room/dto/data-key-value-change";
 
 describe("Room User Data", () => {
 
@@ -47,60 +48,64 @@ describe("Room User Data", () => {
 
     it('set user data checker', async () => {
 
-        const setData = new Map<string, any>([
-            ["nickname", "cooluser"],
-            ["userID", "12345678"]]);
-
-        const test1 = new Map<string, any>([
-            ["nickname", "notcooluser"],
-            ["userID", "0000"]]);
-
-        const test2 = new Map<string, any>([
-            ["nicknamex", "notcooluser"],
-            ["userIDt", "0000"]]);
-
-        const test3 = new Map<string, any>([
-            ["nickname", "notcooluser"]]);
+        const setData: KeyValueDataChange = {
+            "nickname": "cooluser",
+            "userID": "12345678"
+        };
+        const test1: KeyValueDataChange = {
+            "nickname": "notcooluser",
+            "userID": "12345678"
+        };
+        const test2: KeyValueDataChange = {
+            "nicknamex": "notcooluser",
+            "userID": "0000"
+        };
+        const test3: KeyValueDataChange = {
+            "nicknamex": "notcooluser",
+        };
 
         const client = await testUtility.createClient();
         await client.setData(setData);
 
-        expect(testUtility.checker.checkUserServerData(client.id, test1)).toBeFalsy();
-        expect(testUtility.checker.checkUserServerData(client.id, test2)).toBeFalsy();
-        expect(testUtility.checker.checkUserServerData(client.id, test3)).toBeFalsy();
+        expect(testUtility.getUserData(client.id)).not.toEqual(test1);
+        expect(testUtility.getUserData(client.id)).not.toEqual(test2);
+        expect(testUtility.getUserData(client.id)).not.toEqual(test3);
     });
 
     it('mulitple set data', async () => {
-        const data = new Map<string, any>([
-            ["nickname", "cooluser"],
-            ["userID", "12345678"]]);
-        const data2 = new Map<string, any>([["nickname", "supercooluser"]]);
-        const dataChecker = new Map<string, any>([
-            ["nickname", "supercooluser"],
-            ["userID", "12345678"]]);
-
+        const data = {
+            "nickname": "cooluser",
+            "userID": "12345678"
+        };
+        const data2 = { "nickname": "supercooluser" };
+        const dataChecker = {
+            "nickname": "supercooluser",
+            "userID": "12345678"
+        };
         const client = await testUtility.createClient();
         await client.setData(data);
         await client.setData(data2);
-        expect(testUtility.checker.checkUserServerData(client.id, dataChecker)).toBeTruthy();
+
+        expect(testUtility.getUserData(client.id)).toEqual(dataChecker);
     });
 
     it('remove user data', async () => {
 
-        const data = new Map<string, any>([
-            ["nickname", "cooluser"],
-            ["userID", "12345678"]]);
-        
-        const dataChecker = new Map<string,any>([
-            ["nickname", "cooluser"],
-        ]);
-        
+        const data = {
+            "nickname": "cooluser",
+            "userID": "12345678"
+        };
+
+        const dataChecker = {
+            "nickname": "cooluser",
+        };
+
         const removeKeys = ["userID"];
         const client = await testUtility.createClient();
         await client.setData(data);
         await client.removeData(removeKeys);
 
-        expect(testUtility.checker.checkUserServerData(client.id, dataChecker)).toBeTruthy();
+        expect(testUtility.getUserData(client.id)).toEqual(dataChecker);
     });
 
 });

@@ -1,3 +1,4 @@
+import { KeyValueData } from "../../../../src/socket-io-room-server/room/dto/data-key-value-change";
 import ClientUserConnection from "./client-user-connection";
 import { SocketTestUtility } from "./socket-test-utility";
 
@@ -24,25 +25,17 @@ export class SocketCheckUtility {
         return this.arraysEqual(lhs, rhs);
     }
 
-    checkUserServerData(userId:string, expectedData: Map<string, any>) {
+    checkUserServerData(userId:string, expectedData: KeyValueData) {
         const data = this.socketTestUtility.getUserData(userId);
-        
-        if (data.size != expectedData.size)
-            return false;
-
-        for (let key of data.keys()) {
-            if (!expectedData.has(key) || !this.isDeepEqual(expectedData.get(key) , data.get(key)))
-                return false;
-        }
-
-        return true;
+        const res = this.isDeepEqual(data,expectedData);
+        return res;
     }
 
 
     private isDeepEqual(object1, object2) {
         const objKeys1 = Object.keys(object1);
         const objKeys2 = Object.keys(object2);
-
+        
         if (objKeys1.length !== objKeys2.length) return false;
 
         for (var key of objKeys1) {

@@ -1,6 +1,5 @@
 import SocketIOServer from "../../../src/socket-io-room-server/server/socket-io-server";
 import { container } from "tsyringe";
-import ServerRoom from "../../../src/socket-io-room-server/room/server-room";
 import { instantiateServices } from "../../../src/app";
 import { SocketTestUtility } from "./util/socket-test-utility";
 import { RoomChangeDto } from "../../../src/socket-io-room-server/room/dto/room-change.dto";
@@ -34,11 +33,12 @@ describe("Room User Data", () => {
             server.close();
     });
 
-    it('room join result', async () => {
+    it('Room Notification Join Dto', async () => {
         const client = await testUtility.createClient();
         const client2 = await testUtility.createClient();
         
         await client.createRoom(roomName);
+
         const joinResult = await client2.joinRoom(roomName);
         const expectedChange:RoomChangeDto = {
             newOwnerId:client.id,

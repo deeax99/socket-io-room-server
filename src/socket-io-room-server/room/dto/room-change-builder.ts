@@ -1,7 +1,7 @@
 import ServerUser from "../../user/server-user";
 import { RoomChangeDto, ClientUserDto } from "./room-change.dto";
 
-export class RoomChangeBuilder {
+export default class RoomChangeBuilder {
     private constructor() { };
     private roomChange: RoomChangeDto = {};
 
@@ -14,7 +14,7 @@ export class RoomChangeBuilder {
         users.forEach(user => {
             const clientDto: ClientUserDto = {
                 id: user.id,
-                data: user.dataHandler.getDataObject(),
+                data: user.dataHandler.getData(),
                 state: {}
             };
 

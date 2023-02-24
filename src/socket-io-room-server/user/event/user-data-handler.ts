@@ -10,11 +10,12 @@ export default class UserDataHandler {
 
     handleUser = (userConnection:ServerUser) => {
         const socket = userConnection.getSocket; 
+        
         socket.on("setData" , (obj , callback) => {
-            const data = new Map(Object.entries(obj));
-            userConnection.dataHandler.setData(data);
+            userConnection.dataHandler.setData(obj);
             callback();
         });
+
         socket.on("removeData" , (keys , callback) => {
             userConnection.dataHandler.removeData(keys);
             callback();

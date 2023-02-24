@@ -1,5 +1,5 @@
 import ServerUser from "../user/server-user";
-import { RoomChangeBuilder } from "./dto/room-change-builder";
+import RoomChangeBuilder from "./dto/room-change-builder";
 import { RoomChangeDto } from "./dto/room-change.dto";
 import ServerRoomsHandler from "./server-rooms-handler";
 
@@ -12,20 +12,20 @@ export default class ServerRoom {
         this.joinUser(owner);
     }
 
-    getCurrentRoomState () : RoomChangeDto {
+    getCurrentRoomState(): RoomChangeDto {
         return RoomChangeBuilder.Builder()
-                                .addUsers(this.users)
-                                .setOwner(this.owner)
-                                .build();
+            .addUsers(this.users)
+            .setOwner(this.owner)
+            .build();
     }
 
-    joinUser(user: ServerUser) : RoomChangeDto {
-        const state = this.getCurrentRoomState ();
+    joinUser(user: ServerUser): RoomChangeDto {
+        const state = this.getCurrentRoomState();
 
         this.users.push(user);
         user.onDisconnect.addListener(this.disconnectUser);
         user.connectionState.joinRoom(this.roomName);
-        
+
         return state;
     }
 
@@ -38,7 +38,7 @@ export default class ServerRoom {
         this.removeUser(user);
     }
 
-    private removeUser (user: ServerUser) {
+    private removeUser(user: ServerUser) {
         this.users = this.users.filter(filterUser => filterUser != user);
         user.onDisconnect.removeListener(this.disconnectUser);
         this.checkRoomState(user);
