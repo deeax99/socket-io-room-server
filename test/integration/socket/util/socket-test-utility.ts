@@ -45,7 +45,7 @@ export class SocketTestUtility {
         return rooms;
     }
     getRoomUsers(room: ServerRoom): ServerUser[] {
-        return room["users"];
+        return room["roomData"]["users"];
     }
     getRoom(roomName: string): ServerRoom {
         const rooms = this.getRooms();

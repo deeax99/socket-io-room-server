@@ -9,6 +9,10 @@ export default class RoomChangeBuilder {
         return new RoomChangeBuilder();
     }
 
+    addUsersExpect (users: ServerUser[] , expectUser : ServerUser) {
+        return this.addUsers(users.filter(user => user != expectUser));
+    }
+
     addUsers(users: ServerUser[]) {
         this.roomChange.joinedUser = [];
         users.forEach(user => {

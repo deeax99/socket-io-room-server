@@ -6,6 +6,7 @@ import { ServerUserConnectionState } from "../user/server-user-connection-state-
 import { RoomChangeDto } from "./dto/room-change.dto";
 
 type Rooms =  { [id: string]: ServerRoom };
+type CallbackType = (op:ServerOperationResult) => void;
 
 @singleton()
 export default class ServerRoomsHandler {
@@ -13,43 +14,41 @@ export default class ServerRoomsHandler {
 
 	constructor(){}
 
-	joinRoom(user: ServerUser, roomName: string) : ServerOperationResult { 
+	joinRoom(user: ServerUser, roomName: string , callback:CallbackType) { 
 		if (!this.isRoomExist(roomName)) {
-			return ErrorReturn.RoomNotExistError();
+			callback(ErrorReturn.RoomNotExistError())
 		}
 		else if (user.connectionState.state != ServerUserConnectionState.Connected) {
-			return ErrorReturn.UserAlreadyJoinedError();
+			callback(ErrorReturn.UserAlreadyJoinedError())
 		}
 		//check if room full
 		else {
-			const result = this.joinRoomUnsafe(user, roomName);
-			return ServerOperationResult.Successed(result);
+			const result = this.joinRoomUnsafe(user, roomName , callback);
 		}
 	}
 
-	createRoom(owner: ServerUser, roomName: string) : ServerOperationResult {
+	createRoom(owner: ServerUser, roomName: string , callback:CallbackType){
 		if (this.isRoomExist(roomName)) {
-			return ErrorReturn.RoomExistError();
+			callback(ErrorReturn.RoomExistError());
 		}
 		else if (owner.connectionState.state != ServerUserConnectionState.Connected) {
-			return ErrorReturn.UserAlreadyJoinedError();
+			callback(ErrorReturn.UserAlreadyJoinedError());
 		}
 		else {
 			const result = this.createRoomUnsafe(owner , roomName);
-			return ServerOperationResult.Successed(result);
+			callback(ServerOperationResult.Successed());
 		}
 	}
 
-	leaveRoom(user: ServerUser) : ServerOperationResult {
+	leaveRoom(user: ServerUser , callback:CallbackType) {
 		
 		const roomName = user.connectionState.roomName;
 		const room = this.rooms[roomName];
 		if (user.connectionState.state != ServerUserConnectionState.InRoom) {
-			return ErrorReturn.UserNotInRoom();
+			callback(ErrorReturn.UserNotInRoom());
 		}
 		else {
-			room.leaveUser(user);
-			return ServerOperationResult.Successed();
+			room.leaveUser(user , () => callback(ServerOperationResult.Successed()));
 		}
 	}
 
@@ -62,13 +61,13 @@ export default class ServerRoomsHandler {
 	}
 
 	private createRoomUnsafe(owner: ServerUser, roomName: string) {
-		const newRoom = new ServerRoom(owner, roomName, this);
+		const newRoom = ServerRoom.CreateRoom(owner, roomName);
 		this.rooms[roomName] = newRoom;
 	}
 
-	private joinRoomUnsafe (user: ServerUser, roomName: string) : RoomChangeDto {
+	private joinRoomUnsafe (user: ServerUser, roomName: string , callback:CallbackType) {
 		const room = this.rooms[roomName];
-		return room.joinUser(user);
+		room.joinUser(user , (dto) => callback(ServerOperationResult.Successed(dto)));
 	}
 
 	

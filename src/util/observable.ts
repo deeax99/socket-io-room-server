@@ -1,6 +1,18 @@
 export type GenericHandler<T> = ((data: T) => void);
 export type Handler = (() => void);
 
+export class GenericObservableStagin<T> {
+    pre: GenericObservable<T> = new GenericObservable<T>();
+    post: GenericObservable<T> = new GenericObservable<T>();
+    invoke(arg: T, middleCall: () => any = undefined) {
+        this.pre.invoke(arg);
+        if (middleCall != undefined) {
+            middleCall();
+        }
+        this.post.invoke(arg);
+    }
+}
+
 export class GenericObservable<T> {
     private handlers: GenericHandler<T>[] = [];
     addListener(handler: GenericHandler<T>) {
