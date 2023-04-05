@@ -1,32 +1,35 @@
-import { Socket } from "socket.io";
-import { GenericObservable } from "../../util/observable";
-import ServerUserConnectionStateHandler from "./server-user-connection-state-handler";
-import ServerUserDataHandle from "./server-user-data-handler";
+import { GenericObservable } from '../../util/observable';
+import ServerUserConnectionStateHandler from './server-user-connection-state-handler';
+import ServerUserDataHandler from './server-user-data-handler';
+import { IServerConnection } from "../server/types/server-connection";
 
 export default class ServerUser {
+  private serverUserConnectionStateHandler: ServerUserConnectionStateHandler;
+  private serverUserDataHandler: ServerUserDataHandler;
 
-    private _connectionState: ServerUserConnectionStateHandler;
-    private _dataHandler: ServerUserDataHandle;
+  public onDisconnect: GenericObservable<ServerUser>;
 
-    public onDisconnect: GenericObservable<ServerUser>;
+  public get id() {
+    return this.connection.id;
+  }
+  public get connectionStateHandler(): ServerUserConnectionStateHandler {
+    return this.serverUserConnectionStateHandler;
+  }
+  public get connection(): IServerConnection {
+    return this.serverConnection;
+  }
+  public get dataHandler(): ServerUserDataHandler {
+    return this.serverUserDataHandler;
+  }
 
-    public get id() { return this.socket.id; }
-    public get connectionState(): ServerUserConnectionStateHandler { return this._connectionState; }
-    public get getSocket(): Socket { return this.socket; }
-    public get dataHandler(): ServerUserDataHandle { return this._dataHandler; }
+  constructor(private serverConnection: IServerConnection) {
+    this.onDisconnect = new GenericObservable<ServerUser>();
+    this.serverUserConnectionStateHandler = new ServerUserConnectionStateHandler();
+    this.serverUserDataHandler = new ServerUserDataHandler();
 
-    constructor(private socket: Socket) {
-        this.onDisconnect = new GenericObservable<ServerUser>();
-        this._connectionState = new ServerUserConnectionStateHandler();
-        this._dataHandler = new ServerUserDataHandle();
-
-        socket.on("disconnect", () => {
-            this.disconnectionHandler();
-            this._connectionState.disconnect();
-        });
-    }
-
-    private disconnectionHandler() {
-        this.onDisconnect.invoke(this);
-    }
+    serverConnection.addDisconnectionListener(() => {
+      this.serverUserConnectionStateHandler.disconnect();
+      this.onDisconnect.notify(this);
+    });
+  }
 }

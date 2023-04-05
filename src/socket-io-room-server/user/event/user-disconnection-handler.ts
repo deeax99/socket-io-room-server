@@ -1,18 +1,21 @@
-import { injectable, singleton } from "tsyringe";
-import ServerUsersHandler from "../server-users-handler";
-import ServerUser from "../server-user";
-import ServerRoomsHandler from "../../room/server-rooms-handler";
-@singleton()
-export default class UsersDisconnectionHandler {
-    constructor(usersHandler:ServerUsersHandler) {
-        usersHandler.onUserConnect.addListener(this.handleUser);
-    }
+import 'reflect-metadata';
+import ServerUserCreationHandler, { SERVER_USER_CREATION_SYMBOL } from '../server-user-creation-handler';
+import ServerUser from '../server-user';
+import { inject, injectable } from 'inversify';
 
-    handleUser = (userConnection:ServerUser) => {
-        const socket = userConnection.getSocket; 
-        
-        socket.on("server-disconnection" , () => {
-            socket.disconnect()
-        });
-    }
-} 
+export const USER_DISCONNECTION_HANDLER_SYMBOL = Symbol('UsersDisconnectionHandler');
+
+@injectable()
+export default class UsersDisconnectionHandler {
+  constructor(@inject(SERVER_USER_CREATION_SYMBOL) usersHandler: ServerUserCreationHandler) {
+    usersHandler.onUserConnect.addListener(this.handleUser);
+  }
+
+  handleUser = (serverUser: ServerUser) => {
+    const socket = serverUser.connection;
+
+    socket.on('server-disconnection', () => {
+      socket.disconnect();
+    });
+  };
+}

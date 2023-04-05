@@ -1,24 +1,37 @@
-import { injectable, singleton } from "tsyringe";
-import ServerUsersHandler from "../server-users-handler";
-import ServerUser from "../server-user";
-import ServerRoomsHandler from "../../room/server-rooms-handler";
-@singleton()
+import 'reflect-metadata';
+import ServerUserCreationHandler, { SERVER_USER_CREATION_SYMBOL } from '../server-user-creation-handler';
+import ServerUser from '../server-user';
+import { inject, injectable } from 'inversify';
+import { unknownToEmptyCallback, unknownToCallback, unknownToType } from '../../../util/unknown-converter';
+import { KeyValueDataChange } from '../../dto/data-key-value-change';
+
+export const USER_DATA_HANDLER_SYMBOL = Symbol('UserDataHandler');
+
+@injectable()
 export default class UserDataHandler {
-    constructor(usersHandler:ServerUsersHandler) {
-        usersHandler.onUserConnect.addListener(this.handleUser);
-    }
+  constructor(@inject(SERVER_USER_CREATION_SYMBOL) usersHandler: ServerUserCreationHandler) {
+    usersHandler.onUserConnect.addListener(this.handleUser);
+  }
 
-    handleUser = (userConnection:ServerUser) => {
-        const socket = userConnection.getSocket; 
-        
-        socket.on("setData" , (obj , callback) => {
-            userConnection.dataHandler.setData(obj);
-            callback();
-        });
+  handleUser = (serverUser: ServerUser) => {
+    const socket = serverUser.connection;
 
-        socket.on("removeData" , (keys , callback) => {
-            userConnection.dataHandler.removeData(keys);
-            callback();
-        });
-    }
-} 
+    socket.on('setData', (unknownObj, unknownCallback) => {
+
+      const callback = unknownToEmptyCallback(unknownCallback);
+      const dataChangeObject = unknownToType<KeyValueDataChange>(unknownObj);
+
+      serverUser.dataHandler.setData(dataChangeObject);
+      callback();
+    });
+
+    socket.on('removeData', (unknownKeys, unknownCallback) => {
+
+      const callback = unknownToEmptyCallback(unknownCallback);
+      const keys = unknownToType<string[]>(unknownKeys);
+
+      serverUser.dataHandler.removeData(keys);
+      callback();
+    });
+  };
+}

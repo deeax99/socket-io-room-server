@@ -1,23 +1,29 @@
-import { KeyValueData, KeyValueDataChange } from "../room/dto/data-key-value-change";
+import { KeyValueData, KeyValueDataChange, UserDataValue } from '../dto/data-key-value-change';
 
-export default class ServerUserDataHandle {
+export default class ServerUserDataHandler {
+  private userData: Map<string, UserDataValue>;
 
-    private userData: Map<string, any> = new Map<string, any>();
-    setData(data: KeyValueDataChange) {
-        Object.keys(data).forEach(key => {
-            this.userData.set(key, data[key]);
-        });
+  constructor() {
+    this.userData = new Map<string, UserDataValue>();
+  }
+
+  setData(data: KeyValueDataChange): void {
+    for (const [key, value] of Object.entries(data)) {
+      this.userData.set(key, value);
     }
+  }
 
-    getData(): KeyValueData {
-        return Object.fromEntries(this.userData);
+  getData(): KeyValueData {
+    const data: KeyValueData = {};
+    for (const [key, value] of this.userData.entries()) {
+      data[key] = value;
     }
+    return data;
+  }
 
-    removeData(keys: string[]) {
-        keys.forEach(key => {
-            if (this.userData.has(key)) {
-                this.userData.delete(key);
-            }
-        });
+  removeData(keys: string[]): void {
+    for (const key of keys) {
+      this.userData.delete(key);
     }
+  }
 }

@@ -1,7 +1,8 @@
+import { UserDataValue } from "./data-key-value-change";
 
 export interface ClientUserDto {
-    data: any;
-    state: any;
+    data: UserDataValue;
+    state: UserDataValue;
     id: string;
 }
 
@@ -9,11 +10,11 @@ export interface ClientRoomDto {
     users: ClientUserDto[];
     ownerId: number;
     localUserId: number;
-    state: any;
+    state: UserDataValue;
 }
 
 export interface StateChange {
-    changes: { [key: string]: any };
+    changes: { [key: string]: UserDataValue };
 }
 
 export interface RoomChangeDto {
