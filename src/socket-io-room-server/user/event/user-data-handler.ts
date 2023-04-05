@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import ServerUserCreationHandler, { SERVER_USER_CREATION_SYMBOL } from '../server-user-creation-handler';
 import ServerUser from '../server-user';
 import { inject, injectable } from 'inversify';
-import { unknownToEmptyCallback, unknownToCallback, unknownToType } from '../../../util/unknown-converter';
+import { unknownToEmptyCallback, unknownToType } from '../../../util/unknown-converter';
 import { KeyValueDataChange } from '../../dto/data-key-value-change';
 
 export const USER_DATA_HANDLER_SYMBOL = Symbol('UserDataHandler');

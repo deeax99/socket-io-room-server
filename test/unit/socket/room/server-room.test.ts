@@ -1,4 +1,3 @@
-import ServerRoomEvent from "../../../../src/socket-io-room-server/room/room-util/server-room-event";
 import ServerRoom from "../../../../src/socket-io-room-server/room/server-room"
 import { RoomDestroyCallback } from "../../../../src/socket-io-room-server/room/types/server-room";
 import ServerUser from "../../../../src/socket-io-room-server/user/server-user";

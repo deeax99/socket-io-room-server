@@ -1,137 +1,147 @@
-import "reflect-metadata"
-import { Container, injectable } from "inversify";
-import ServerRoomsManager from "../../../../src/socket-io-room-server/room/server-rooms-manager";
-import { IServerRoom, JoinUserCallback, LeaveUserCallback, RoomDestroyCallback, SERVER_ROOMS_FACTORY_SYMBOL } from "../../../../src/socket-io-room-server/room/types/server-room";
-import { SERVER_ROOMS_MANAGER_SYMBOL } from "../../../../src/socket-io-room-server/room/types/server-rooms-manager";
-import { ServerConnectionFake } from "../util/server-connection-fake";
-import ServerUser from "../../../../src/socket-io-room-server/user/server-user";
-import ServerOperationResult from "../../../../src/socket-io-room-server/dto/server-operation-result";
-import { RoomChangeDto } from "../../../../src/socket-io-room-server/dto/room-change.dto";
-import { IServerRoomFactory } from "../../../../src/socket-io-room-server/room/types/server-room-factory";
+import { RoomOperationsErrors } from "@server-room/dto/room-operations-errors";
+import ServerOperationResult from "@server-room/dto/server-operation-result";
+import ServerRoomsManager from "@server-room/room/server-rooms-manager";
+import { IServerRoom } from "@server-room/room/types/server-room";
+import { IServerRoomFactory } from "@server-room/room/types/server-room-factory";
+import ServerUser from "@server-room/user/server-user";
+import ServerUserConnectionStateHandler, { ServerUserConnectionState } from "@server-room/user/server-user-connection-state-handler";
 
-enum RoomOpErrors {
-    RoomNotExist = "Room not exist",
-    RoomExist = "Room exist",
-    UserInJoinedState = "User already in joined state",
-    UserNotInJoinedState = "User already in connected state"
+const roomName = "roomName";
+
+let serverRoomFactory: IServerRoomFactory;
+let serverRoomManager: ServerRoomsManager;
+
+function createServerRoomFactory() {
+    return {
+        createRoom: jest.fn(() => {
+            return {
+                joinUser: jest.fn(),
+                leaveUser: jest.fn(),
+            } as IServerRoom;
+        })
+    } as IServerRoomFactory;
 }
 
-class ServerRoomFake implements IServerRoom {
-
-    constructor(private owner: ServerUser, private roomName: string, private roomDestroyCallback: RoomDestroyCallback) {
-        this.joinUser(owner, undefined);
-    }
-
-    joinUser = jest.fn((user: ServerUser, callback: JoinUserCallback) => {
-        user.connectionStateHandler.joinRoom(this.roomName);
-        if (callback != undefined) {
-            callback({ "roomName": this.roomName } as RoomChangeDto);
-        }
-    });
-
-    leaveUser = jest.fn((user: ServerUser, callback: LeaveUserCallback) => {
-        user.connectionStateHandler.leaveRoom();
-        callback();
-    });
-
-    destroyRoom() {
-        this.roomDestroyCallback();
-    }
+function createServerUser(connectionState: ServerUserConnectionState) {
+    const connectionStateHandler = new ServerUserConnectionStateHandler();
+    connectionStateHandler["_state"] = connectionState;
+    return {
+        get connectionStateHandler() {
+            return connectionStateHandler;
+        },
+    } as ServerUser;
 }
 
-@injectable()
-class ServerRoomFactoryFake implements IServerRoomFactory {
-    createRoom = jest.fn((owner: ServerUser, roomName: string, roomDestroyCallback: RoomDestroyCallback) => {
-        return new ServerRoomFake(owner, roomName, roomDestroyCallback);
-    });
-}
+beforeEach(() => {
+    serverRoomFactory = createServerRoomFactory();
+    serverRoomManager = new ServerRoomsManager(serverRoomFactory);
+})
+
+afterEach(() => {
+    jest.clearAllMocks();
+    jest.resetModules();
+})
 
 describe("ServerRoomsManager", () => {
 
-    const roomName = "room_1";
-    const roomName2 = "room_2";
-
-    let serverRoomsManager: ServerRoomsManager;
-    let roomFactory: ServerRoomFactoryFake;
-    let serverUser: ServerUser;
-    let serverUser2: ServerUser;
-
-    function createServerUser() {
-        const connection = new ServerConnectionFake();
-        return new ServerUser(connection);
-    }
-
+    let opCallback: jest.Mock;
 
     beforeEach(() => {
-        const container = new Container();
-
-        container.bind<IServerRoomFactory>(SERVER_ROOMS_FACTORY_SYMBOL).to(ServerRoomFactoryFake).inSingletonScope();
-        container.bind<ServerRoomsManager>(SERVER_ROOMS_MANAGER_SYMBOL).to(ServerRoomsManager).inSingletonScope();
-
-        serverRoomsManager = container.get<ServerRoomsManager>(SERVER_ROOMS_MANAGER_SYMBOL);
-        roomFactory = container.get<IServerRoomFactory>(SERVER_ROOMS_FACTORY_SYMBOL) as ServerRoomFactoryFake;
-
-        serverUser = createServerUser();
-        serverUser2 = createServerUser();
+        opCallback = jest.fn();
     })
 
-    it("should create room", () => {
-        const createRoomFn = jest.fn();
+    function createUserAndRoomAndGetOwner() {
+        const owner = createServerUser(ServerUserConnectionState.Connected);
+        serverRoomManager.createRoom(owner, roomName, opCallback);
+        owner.connectionStateHandler["_state"] = ServerUserConnectionState.InRoom;
+        owner.connectionStateHandler["_roomName"] = roomName;
+        return owner;
+    }
 
-        serverRoomsManager.createRoom(serverUser, roomName, createRoomFn);
-        serverRoomsManager.createRoom(serverUser, roomName2, createRoomFn);
-        serverRoomsManager.createRoom(serverUser2, roomName, createRoomFn);
-        serverRoomsManager.createRoom(serverUser2, roomName2, createRoomFn);
+    function createRoomAndGetUserAndMocked(): [ServerUser, jest.Mock, jest.Mock] {
+        const owner = createUserAndRoomAndGetOwner();
+        const room: IServerRoom = serverRoomManager["rooms"][roomName];
+        return [owner, room.joinUser as jest.Mock, room.leaveUser as jest.Mock];
+    }
 
-        expect(createRoomFn.mock.calls).toHaveLength(4);
-        expect(createRoomFn.mock.calls).toStrictEqual([
-            [ServerOperationResult.succeed()],
-            [ServerOperationResult.failed(RoomOpErrors.UserInJoinedState)],
-            [ServerOperationResult.failed(RoomOpErrors.RoomExist)],
-            [ServerOperationResult.succeed()],
-        ]);
+    describe("create", () => {
 
-        const rooms = serverRoomsManager["rooms"];
+        it("should create room in when user in connected state", () => {
+            const serverUser = createUserAndRoomAndGetOwner();
 
-        expect(Object.keys(rooms)).toHaveLength(2);
-        expect(rooms[roomName]).toBe(roomFactory.createRoom.mock.results[0].value);
-        expect(rooms[roomName2]).toBe(roomFactory.createRoom.mock.results[1].value);
+            expect(opCallback).toBeCalledWith(ServerOperationResult.succeed());
+            expect(serverRoomFactory.createRoom).toBeCalledWith(serverUser, roomName, expect.anything());
+            expect(serverRoomManager["rooms"]).toHaveProperty(roomName);
+        })
+
+        it("should failed to create room when in any state other than connected state", () => {
+            const inRoomServerUser = createServerUser(ServerUserConnectionState.InRoom);
+            serverRoomManager.createRoom(inRoomServerUser, roomName, opCallback);
+
+            expect(opCallback).toBeCalledWith(ServerOperationResult.failed(RoomOperationsErrors.UserInJoinedState));
+            expect(serverRoomFactory.createRoom).toBeCalledTimes(0);
+            expect(serverRoomManager["rooms"]).not.toHaveProperty(roomName);
+        })
+
+        it("should failed to create exist Room", () => {
+            createUserAndRoomAndGetOwner();
+            const serverUser2 = createServerUser(ServerUserConnectionState.InRoom);
+
+            serverRoomManager.createRoom(serverUser2, roomName, opCallback);
+
+            expect(opCallback).nthCalledWith(2, ServerOperationResult.failed(RoomOperationsErrors.RoomExist));
+        })
     })
 
-    it("should join room", () => {
-        const joinRoomFn = jest.fn();
+    describe("join", () => {
+        it("should join room when user in connected state", () => {
+            const [, mockedJoin] = createRoomAndGetUserAndMocked();
+            const serverUser = createServerUser(ServerUserConnectionState.Connected);
+            serverRoomManager.joinRoom(serverUser, roomName, opCallback);
 
-        const room = roomFactory.createRoom(serverUser2, roomName, undefined);
-        serverRoomsManager["rooms"][roomName] = room;
+            const joinCallback = mockedJoin.mock.calls[0][1];
+            joinCallback("data");
 
-        serverRoomsManager.joinRoom(serverUser, roomName2, joinRoomFn);
-        serverRoomsManager.joinRoom(serverUser, roomName, joinRoomFn);
-        serverRoomsManager.joinRoom(serverUser, roomName, joinRoomFn);
+            expect(opCallback).nthCalledWith(2, ServerOperationResult.succeed("data"));
+        })
 
-        expect(joinRoomFn.mock.calls).toHaveLength(3);
-        expect(joinRoomFn.mock.calls).toStrictEqual([
-            [ServerOperationResult.failed(RoomOpErrors.RoomNotExist)],
-            [ServerOperationResult.succeed({ "roomName": roomName })],
-            [ServerOperationResult.failed(RoomOpErrors.UserInJoinedState)],
-        ]);
+        it("should failed to join non exist room", () => {
+            const serverUser = createServerUser(ServerUserConnectionState.Connected);
+            serverRoomManager.joinRoom(serverUser, roomName, opCallback);
+            expect(opCallback).nthCalledWith(1, ServerOperationResult.failed(RoomOperationsErrors.RoomNotExist));
+        })
+
+        it("should failed to join while already joined", () => {
+            const owner = createUserAndRoomAndGetOwner();
+            serverRoomManager.joinRoom(owner, roomName, opCallback);
+            expect(opCallback).nthCalledWith(2, ServerOperationResult.failed(RoomOperationsErrors.UserInJoinedState));
+        })
     })
 
-    it("should leave room", () => {
-        const leaveRoomFn = jest.fn();
+    describe("leave", () => {
 
-        serverRoomsManager.createRoom(serverUser, roomName, jest.fn());
-        serverRoomsManager.leaveRoom(serverUser, leaveRoomFn);
-        serverRoomsManager.leaveRoom(serverUser2, leaveRoomFn);
+        function getRoomDestroyCallback() {
+            const createRoomMock = serverRoomFactory.createRoom as jest.Mock;
+            return createRoomMock.mock.calls[0][2];
+        }
 
-        expect(leaveRoomFn.mock.calls).toHaveLength(2);
-        expect(leaveRoomFn.mock.calls).toStrictEqual([
-            [ServerOperationResult.succeed()],
-            [ServerOperationResult.failed(RoomOpErrors.UserNotInJoinedState)],
-        ]);
+        it("should leave room when user inside the room and destroy the room", () => {
+            const [serverUser, , leaveMock] = createRoomAndGetUserAndMocked();
+            serverRoomManager.leaveRoom(serverUser, opCallback);
 
-        const room = serverRoomsManager["rooms"][roomName] as ServerRoomFake;
-        room.destroyRoom();
+            const roomDestroyCallback = getRoomDestroyCallback();
+            const mockCallback = leaveMock.mock.calls[0][1];
+            mockCallback();
+            roomDestroyCallback();
 
-        expect(Object.keys(serverRoomsManager["rooms"])).toHaveLength(0);
+            expect(opCallback).nthCalledWith(2, ServerOperationResult.succeed());
+            expect(serverRoomManager).not.toHaveProperty(roomName);
+        })
+
+        it("should failed to leave room when user isn't in room state", () => {
+            const serverUser = createServerUser(ServerUserConnectionState.Connected);
+            serverRoomManager.leaveRoom(serverUser, opCallback);
+            expect(opCallback).toBeCalledWith(ServerOperationResult.failed(RoomOperationsErrors.UserNotInJoinedState));
+        })
     })
 })

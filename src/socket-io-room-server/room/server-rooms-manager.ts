@@ -7,15 +7,9 @@ import { inject, injectable } from 'inversify';
 import { IServerRoom, SERVER_ROOMS_FACTORY_SYMBOL } from './types/server-room';
 import { UserDataValue } from '../dto/data-key-value-change';
 import { IServerRoomFactory } from './types/server-room-factory';
+import { RoomOperationsErrors } from '@server-room/dto/room-operations-errors';
 
 type Rooms = { [id: string]: IServerRoom };
-
-enum RoomOpErrors {
-  RoomNotExist = "Room not exist",
-  RoomExist = "Room exist",
-  UserInJoinedState = "User already in joined state",
-  UserNotInJoinedState = "User already in connected state"
-}
 
 @injectable()
 export default class ServerRoomsManager implements IServerRoomsManager {
@@ -26,9 +20,9 @@ export default class ServerRoomsManager implements IServerRoomsManager {
   joinRoom(user: ServerUser, roomName: string, callback: ServerOperationCallbackType) {
     let errorOp;
     if (!this.isRoomExist(roomName)) {
-      errorOp = RoomOpErrors.RoomNotExist;
+      errorOp = RoomOperationsErrors.RoomNotExist;
     } else if (user.connectionStateHandler.state != ServerUserConnectionState.Connected) {
-      errorOp = RoomOpErrors.UserInJoinedState;
+      errorOp = RoomOperationsErrors.UserInJoinedState;
     } else {
       this.joinRoomUnsafe(user, roomName, callback);
       return;
@@ -39,9 +33,9 @@ export default class ServerRoomsManager implements IServerRoomsManager {
   createRoom(owner: ServerUser, roomName: string, callback: ServerOperationCallbackType) {
     let errorOp;
     if (this.isRoomExist(roomName)) {
-      errorOp = RoomOpErrors.RoomExist;
+      errorOp = RoomOperationsErrors.RoomExist;
     } else if (owner.connectionStateHandler.state != ServerUserConnectionState.Connected) {
-      errorOp = RoomOpErrors.UserInJoinedState;
+      errorOp = RoomOperationsErrors.UserInJoinedState;
     } else {
       this.createRoomUnsafe(owner, roomName, callback);
       return;
@@ -51,7 +45,7 @@ export default class ServerRoomsManager implements IServerRoomsManager {
 
   leaveRoom(user: ServerUser, callback: ServerOperationCallbackType) {
     if (user.connectionStateHandler.state != ServerUserConnectionState.InRoom) {
-      callback(ServerOperationResult.failed(RoomOpErrors.UserNotInJoinedState));
+      callback(ServerOperationResult.failed(RoomOperationsErrors.UserNotInJoinedState));
     } else {
       const roomName = user.connectionStateHandler.roomName;
       const room = this.rooms[roomName];
